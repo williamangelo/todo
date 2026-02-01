@@ -225,7 +225,13 @@ def load_archive():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="A simple todo CLI application")
+    parser = argparse.ArgumentParser(
+        description="A simple todo CLI application",
+        epilog="environment variables:\n"
+               "  TODO_CLI_FILE          Path to todo file (default: ~/.todo.md)\n"
+               "  TODO_CLI_ARCHIVE_FILE  Path to archive file (default: ~/.todo-archive.md)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # add command

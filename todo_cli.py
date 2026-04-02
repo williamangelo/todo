@@ -140,9 +140,126 @@ class App:
         curses.init_pair(7, 196, -1)   # red (error)
         curses.init_pair(8, 236, -1)   # very dark gray (scratched)
 
+    def _wave_color(self, char_pos: int) -> int:
+        # 256-color amber→red→amber wave. returns a curses color pair.
+        # pairs 20+ reserved for wave colors to avoid clashing with pairs 1-8
+        wave_colors = [214, 208, 202, 196, 202, 208]  # amber→red→amber
+        phase = (self._frame + char_pos * 2) % (len(wave_colors) * 3)
+        color_idx = wave_colors[phase % len(wave_colors)]
+        pair_num = 20 + (phase % len(wave_colors))
+        curses.init_pair(pair_num, color_idx, -1)
+        return curses.color_pair(pair_num)
+
+    def _draw_separator(self, row: int) -> None:
+        _, w = self.stdscr.getmaxyx()
+        self.stdscr.addstr(row, 0, "─" * (w - 1), curses.color_pair(1))
+
+    def _draw_item(self, screen_row: int, index: Optional[int], item: dict, width: int, selected: bool) -> None:
+        h, w = self.stdscr.getmaxyx()
+        if screen_row >= h - 1:
+            return
+
+        status = item["status"]
+        text = item["text"]
+        date_str = item["created_at"]
+        padded = text.ljust(width)
+
+        if selected:
+            self.stdscr.addstr(screen_row, 0, " " * (w - 1), curses.color_pair(3))
+
+        # index column (3 chars wide, right-aligned)
+        idx_str = f"{index:>3}" if index is not None else "   "
+        self.stdscr.addstr(screen_row, 0, idx_str, curses.color_pair(1))
+
+        # bracket
+        if status == "pinned":
+            bracket = "[ ]"
+            bracket_pair = curses.color_pair(6)
+        elif status == "checked":
+            bracket = "[X]"
+            bracket_pair = curses.color_pair(4)
+        else:
+            bracket = "[ ]"
+            bracket_pair = curses.color_pair(1)
+
+        self.stdscr.addstr(screen_row, 4, f"  {bracket}  ", bracket_pair)
+
+        # text column starts at col 11
+        text_col = 11
+        if status == "pinned":
+            for i, ch in enumerate(padded):
+                if text_col + i >= w - 1:
+                    break
+                self.stdscr.addstr(screen_row, text_col + i, ch, self._wave_color(i))
+        elif status == "checked":
+            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.color_pair(5))
+        elif status == "scratched":
+            # curses has no strikethrough — render with very dark color
+            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.color_pair(8))
+        else:
+            bg = curses.color_pair(3) if selected else curses.color_pair(2)
+            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], bg)
+
+        # date column: aligned globally to longest item
+        date_col = text_col + width + 2
+        date_str_formatted = f"│  {date_str}"
+        if date_col + len(date_str_formatted) < w:
+            self.stdscr.addstr(screen_row, date_col, date_str_formatted, curses.color_pair(1))
+
     def draw(self) -> None:
         self.stdscr.erase()
-        self.stdscr.addstr(0, 2, "TODO", curses.color_pair(1))
+        h, _ = self.stdscr.getmaxyx()
+
+        items = self._load_items()
+        nav = navigable_items(items)
+        pinned = [r for r in items if r["status"] == "pinned"]
+        unchecked = [r for r in items if r["status"] == "unchecked"]
+        checked = [r for r in items if r["status"] == "checked"]
+        scratched = [r for r in items if r["status"] == "scratched"]
+
+        width = col_width(items)
+
+        row = 0
+        self.stdscr.addstr(row, 2, "TODO", curses.color_pair(1))
+        row += 2
+
+        # display index counter (1-based, covers pinned + unchecked)
+        nav_index = 1
+
+        # pinned section
+        for item in pinned:
+            selected = (nav_index - 1) == self.cursor
+            self._draw_item(row, nav_index, item, width, selected)
+            row += 1
+            nav_index += 1
+
+        if pinned and (unchecked or checked):
+            self._draw_separator(row)
+            row += 1
+
+        # unchecked section
+        for item in unchecked:
+            selected = (nav_index - 1) == self.cursor
+            self._draw_item(row, nav_index, item, width, selected)
+            row += 1
+            nav_index += 1
+
+        # checked section
+        if checked:
+            self._draw_separator(row)
+            row += 1
+            for item in checked:
+                self._draw_item(row, None, item, width, False)
+                row += 1
+
+        # scratched section (only when show_scratched is True)
+        if self.show_scratched and scratched:
+            self._draw_separator(row)
+            row += 1
+            for item in scratched:
+                self._draw_item(row, None, item, width, False)
+                row += 1
+
         self._draw_statusbar()
         self.stdscr.refresh()
 

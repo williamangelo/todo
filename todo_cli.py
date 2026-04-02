@@ -59,6 +59,42 @@ def pin_todo(conn: sqlite3.Connection, todo_id: int) -> None:
     conn.commit()
 
 
+def parse_command(buf: str) -> dict:
+    parts = buf.strip().split(None, 1)
+    if not parts:
+        return {"action": "error", "message": "empty command"}
+    cmd = parts[0]
+    arg = parts[1] if len(parts) > 1 else ""
+
+    if cmd == "q":
+        return {"action": "quit"}
+
+    if cmd in ("a", "add"):
+        if not arg:
+            return {"action": "error", "message": f"usage: {cmd} <text>"}
+        return {"action": "add", "text": arg}
+
+    if cmd in ("c", "check"):
+        try:
+            return {"action": "check", "index": int(arg)}
+        except ValueError:
+            return {"action": "error", "message": f"usage: {cmd} <id>"}
+
+    if cmd in ("s", "scratch"):
+        try:
+            return {"action": "scratch", "index": int(arg)}
+        except ValueError:
+            return {"action": "error", "message": f"usage: {cmd} <id>"}
+
+    if cmd in ("p", "pin"):
+        try:
+            return {"action": "pin", "index": int(arg)}
+        except ValueError:
+            return {"action": "error", "message": f"usage: {cmd} <id>"}
+
+    return {"action": "error", "message": "unknown command"}
+
+
 def main() -> None:
     pass
 

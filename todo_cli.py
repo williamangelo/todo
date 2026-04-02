@@ -126,18 +126,10 @@ class App:
         self._init_colors()
 
     def _init_colors(self) -> None:
-        # color pair indices
-        # 1: dim (gray)      2: normal text     3: selected bg
-        # 4: checked bracket 5: checked text    6: pinned bracket
-        # 7: error           8: scratched
-        curses.init_pair(1, 240, -1)   # dark gray
-        curses.init_pair(2, 252, -1)   # light gray
-        curses.init_pair(3, 252, 22)   # light text, dark green bg
-        curses.init_pair(4, 71, -1)    # muted green (checked bracket)
-        curses.init_pair(5, 65, -1)    # darker green (checked text)
-        curses.init_pair(6, 214, -1)   # amber (pinned bracket)
-        curses.init_pair(7, 196, -1)   # red (error)
-        curses.init_pair(8, 236, -1)   # very dark gray (scratched)
+        # all pairs use -1 (terminal default bg) so the theme adapts to the user's terminal
+        curses.init_pair(1, curses.COLOR_GREEN, -1)   # checked
+        curses.init_pair(2, curses.COLOR_YELLOW, -1)  # pinned bracket
+        curses.init_pair(3, curses.COLOR_RED, -1)     # error
 
     def _wave_color(self, char_pos: int) -> int:
         # 256-color amber→red→amber wave. returns a curses color pair.
@@ -151,7 +143,7 @@ class App:
 
     def _draw_separator(self, row: int) -> None:
         _, w = self.stdscr.getmaxyx()
-        self.stdscr.addstr(row, 0, "─" * (w - 1), curses.color_pair(1))
+        self.stdscr.addstr(row, 0, "─" * (w - 1), curses.A_DIM)
 
     def _draw_item(self, screen_row: int, index: Optional[int], item: dict, width: int, selected: bool) -> None:
         h, w = self.stdscr.getmaxyx()
@@ -163,25 +155,22 @@ class App:
         date_str = item["created_at"]
         padded = text.ljust(width)
 
-        if selected:
-            self.stdscr.addstr(screen_row, 0, " " * (w - 1), curses.color_pair(3))
-
         # index column (3 chars wide, right-aligned)
         idx_str = f"{index:>3}" if index is not None else "   "
-        self.stdscr.addstr(screen_row, 0, idx_str, curses.color_pair(1))
+        self.stdscr.addstr(screen_row, 0, idx_str, curses.A_DIM)
 
-        # bracket
+        # bracket — cursor is shown by reversing the bracket of the selected item
         if status == "pinned":
             bracket = "[ ]"
-            bracket_pair = curses.color_pair(6)
+            bracket_attr = curses.color_pair(2)  # yellow
         elif status == "checked":
             bracket = "[X]"
-            bracket_pair = curses.color_pair(4)
+            bracket_attr = curses.color_pair(1)  # green
         else:
             bracket = "[ ]"
-            bracket_pair = curses.color_pair(1)
+            bracket_attr = curses.A_REVERSE if selected else curses.A_DIM
 
-        self.stdscr.addstr(screen_row, 4, f"  {bracket}  ", bracket_pair)
+        self.stdscr.addstr(screen_row, 4, f"  {bracket}  ", bracket_attr)
 
         # text column starts at col 11
         text_col = 11
@@ -191,19 +180,18 @@ class App:
                     break
                 self.stdscr.addstr(screen_row, text_col + i, ch, self._wave_color(i))
         elif status == "checked":
-            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.color_pair(5))
+            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.color_pair(1) | curses.A_DIM)
         elif status == "scratched":
-            # curses has no strikethrough — render with very dark color
-            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.color_pair(8))
+            # curses has no strikethrough — render dim
+            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.A_DIM)
         else:
-            bg = curses.color_pair(3) if selected else curses.color_pair(2)
-            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], bg)
+            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.A_NORMAL)
 
         # date column: aligned globally to longest item
         date_col = text_col + width + 2
         date_str_formatted = f"│  {date_str}"
         if date_col + len(date_str_formatted) < w:
-            self.stdscr.addstr(screen_row, date_col, date_str_formatted, curses.color_pair(1))
+            self.stdscr.addstr(screen_row, date_col, date_str_formatted, curses.A_DIM)
 
     def draw(self) -> None:
         self.stdscr.erase()
@@ -219,7 +207,7 @@ class App:
         width = col_width(items)
 
         row = 0
-        self.stdscr.addstr(row, 2, "TODO", curses.color_pair(1))
+        self.stdscr.addstr(row, 2, "TODO", curses.A_DIM)
         row += 2
 
         # display index counter (1-based, covers pinned + unchecked)
@@ -266,14 +254,14 @@ class App:
         h, w = self.stdscr.getmaxyx()
         if self.mode == "command":
             bar = ":" + self.command_buf
-            self.stdscr.addstr(h - 1, 0, bar, curses.color_pair(2))
+            self.stdscr.addstr(h - 1, 0, bar, curses.A_NORMAL)
         elif self.error:
-            self.stdscr.addstr(h - 1, 0, self.error, curses.color_pair(7))
+            self.stdscr.addstr(h - 1, 0, self.error, curses.color_pair(3))
         else:
             status = "NORMAL"
             if self.show_scratched:
                 status += "  s"
-            self.stdscr.addstr(h - 1, 0, status, curses.color_pair(1))
+            self.stdscr.addstr(h - 1, 0, status, curses.A_DIM)
 
     def handle_key(self, key: int) -> bool:
         """Return False to quit."""

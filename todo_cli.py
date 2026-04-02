@@ -95,6 +95,18 @@ def parse_command(buf: str) -> dict:
     return {"action": "error", "message": "unknown command"}
 
 
+def col_width(items: list) -> int:
+    if not items:
+        return 0
+    return max(len(row["text"]) for row in items)
+
+
+def navigable_items(items: list) -> list:
+    pinned = [r for r in items if r["status"] == "pinned"]
+    unchecked = [r for r in items if r["status"] == "unchecked"]
+    return pinned + unchecked
+
+
 def main() -> None:
     pass
 

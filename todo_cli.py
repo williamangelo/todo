@@ -3,7 +3,6 @@
 
 import curses
 import sqlite3
-import time
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -233,7 +232,7 @@ class App:
             row += 1
             nav_index += 1
 
-        if pinned and (unchecked or checked):
+        if pinned and unchecked:
             self._draw_separator(row)
             row += 1
 
@@ -295,7 +294,7 @@ class App:
         elif key == curses.KEY_DOWN:
             items = self._load_items()
             nav = navigable_items(items)
-            self.cursor = min(len(nav) - 1, self.cursor + 1)
+            self.cursor = max(0, min(len(nav) - 1, self.cursor + 1))
 
         return True
 

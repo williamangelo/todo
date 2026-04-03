@@ -162,7 +162,7 @@ class App:
         # bracket — cursor is shown by reversing the bracket of the selected item
         if status == "pinned":
             bracket = "[ ]"
-            bracket_attr = curses.color_pair(2)  # yellow
+            bracket_attr = curses.color_pair(2) | curses.A_REVERSE if selected else curses.color_pair(2)
         elif status == "checked":
             bracket = "[X]"
             bracket_attr = curses.color_pair(1)  # green
@@ -178,7 +178,8 @@ class App:
             for i, ch in enumerate(padded):
                 if text_col + i >= w - 1:
                     break
-                self.stdscr.addstr(screen_row, text_col + i, ch, self._wave_color(i))
+                wave = self._wave_color(i) | (curses.A_DIM if selected else curses.A_NORMAL)
+                self.stdscr.addstr(screen_row, text_col + i, ch, wave)
         elif status == "checked":
             self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.color_pair(1) | curses.A_DIM)
         elif status == "scratched":
@@ -274,6 +275,12 @@ class App:
         if key == ord(":"):
             self.mode = "command"
             self.command_buf = ""
+        elif key in (curses.KEY_ENTER, 10, 13):
+            items = self._load_items()
+            nav = navigable_items(items)
+            if nav:
+                set_status(self.db, nav[self.cursor]["id"], "checked")
+                self.cursor = min(self.cursor, max(0, len(nav) - 2))
         elif key == ord("s"):
             self.show_scratched = not self.show_scratched
             self.cursor = 0

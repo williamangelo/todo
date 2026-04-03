@@ -16,21 +16,20 @@ def test_add_todo(db):
     assert rows[0]["created_at"] == date.today().strftime("%Y-%m-%d")
 
 
-def test_get_todos_excludes_scratched_by_default(db):
-    todo_cli.add_todo(db, "visible")
-    todo_cli.add_todo(db, "hidden")
-    db.execute("UPDATE todos SET status='scratched' WHERE text='hidden'")
-    rows = todo_cli.get_todos(db, include_scratched=False)
-    assert len(rows) == 1
-    assert rows[0]["text"] == "visible"
+def test_get_todos_order(db):
+    todo_cli.add_todo(db, "normal")
+    todo_cli.add_todo(db, "pinned")
+    db.execute("UPDATE todos SET status='pinned' WHERE text='pinned'")
+    rows = todo_cli.get_todos(db)
+    assert rows[0]["text"] == "pinned"
+    assert rows[1]["text"] == "normal"
 
 
-def test_get_todos_includes_scratched_when_requested(db):
-    todo_cli.add_todo(db, "visible")
-    todo_cli.add_todo(db, "hidden")
-    db.execute("UPDATE todos SET status='scratched' WHERE text='hidden'")
-    rows = todo_cli.get_todos(db, include_scratched=True)
-    assert len(rows) == 2
+def test_delete_todo(db):
+    todo_cli.add_todo(db, "to remove")
+    row = db.execute("SELECT id FROM todos").fetchone()
+    todo_cli.delete_todo(db, row["id"])
+    assert db.execute("SELECT count(*) FROM todos").fetchone()[0] == 0
 
 
 def test_set_status(db):

@@ -27,3 +27,6 @@ htmlcov/
 __pycache__/
 *.pyc
 *.egg-info/
+
+# superpower docs
+docs/superpowers/*

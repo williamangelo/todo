@@ -21,12 +21,12 @@ def test_parse_check_long():
     assert todo_cli.parse_command("check 3") == {"action": "check", "index": 3}
 
 
-def test_parse_scratch_short():
-    assert todo_cli.parse_command("s 2") == {"action": "scratch", "index": 2}
+def test_parse_rm():
+    assert todo_cli.parse_command("rm 2") == {"action": "rm", "index": 2}
 
 
-def test_parse_scratch_long():
-    assert todo_cli.parse_command("scratch 2") == {"action": "scratch", "index": 2}
+def test_parse_rm_no_space():
+    assert todo_cli.parse_command("rm2") == {"action": "rm", "index": 2}
 
 
 def test_parse_pin_short():

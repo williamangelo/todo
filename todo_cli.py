@@ -104,9 +104,8 @@ def col_width(items: list) -> int:
 
 
 def navigable_items(items: list) -> list:
-    pinned = [r for r in items if r["status"] == "pinned"]
-    unchecked = [r for r in items if r["status"] == "unchecked"]
-    return pinned + unchecked
+    # all visible items are navigable; get_todos already orders and filters them
+    return list(items)
 
 
 class App:
@@ -165,7 +164,7 @@ class App:
             bracket_attr = curses.color_pair(2) | curses.A_REVERSE if selected else curses.color_pair(2)
         elif status == "checked":
             bracket = "[X]"
-            bracket_attr = curses.color_pair(1)  # green
+            bracket_attr = curses.color_pair(1) | curses.A_REVERSE if selected else curses.color_pair(1)
         else:
             bracket = "[ ]"
             bracket_attr = curses.A_REVERSE if selected else curses.A_DIM
@@ -237,16 +236,20 @@ class App:
             self._draw_separator(row)
             row += 1
             for item in checked:
-                self._draw_item(row, None, item, width, False)
+                selected = (nav_index - 1) == self.cursor
+                self._draw_item(row, nav_index, item, width, selected)
                 row += 1
+                nav_index += 1
 
         # scratched section (only when show_scratched is True)
         if self.show_scratched and scratched:
             self._draw_separator(row)
             row += 1
             for item in scratched:
-                self._draw_item(row, None, item, width, False)
+                selected = (nav_index - 1) == self.cursor
+                self._draw_item(row, nav_index, item, width, selected)
                 row += 1
+                nav_index += 1
 
         self._draw_statusbar()
         self.stdscr.refresh()
@@ -279,7 +282,9 @@ class App:
             items = self._load_items()
             nav = navigable_items(items)
             if nav:
-                set_status(self.db, nav[self.cursor]["id"], "checked")
+                item = nav[self.cursor]
+                new_status = "unchecked" if item["status"] == "checked" else "checked"
+                set_status(self.db, item["id"], new_status)
                 self.cursor = min(self.cursor, max(0, len(nav) - 2))
         elif key == ord("s"):
             self.show_scratched = not self.show_scratched
@@ -336,7 +341,8 @@ class App:
                 return True
             todo_id = nav[idx]["id"]
             if cmd["action"] == "check":
-                set_status(self.db, todo_id, "checked")
+                new_status = "unchecked" if nav[idx]["status"] == "checked" else "checked"
+                set_status(self.db, todo_id, new_status)
                 self.cursor = min(self.cursor, max(0, len(nav) - 2))
             elif cmd["action"] == "scratch":
                 set_status(self.db, todo_id, "scratched")

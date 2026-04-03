@@ -20,7 +20,7 @@ def test_col_width_empty():
     assert todo_cli.col_width([]) == 0
 
 
-def test_navigable_items_excludes_checked_and_scratched():
+def test_navigable_items_returns_all_items():
     items = [
         _row("pinned", "pinned"),
         _row("unchecked", "unchecked"),
@@ -28,14 +28,14 @@ def test_navigable_items_excludes_checked_and_scratched():
         _row("scratched", "scratched"),
     ]
     nav = todo_cli.navigable_items(items)
-    assert len(nav) == 2
-    assert all(r["status"] in ("pinned", "unchecked") for r in nav)
+    assert len(nav) == 4
 
 
-def test_navigable_items_pinned_first():
+def test_navigable_items_preserves_order():
     items = [
-        _row("unchecked", "unchecked"),
         _row("pinned", "pinned"),
+        _row("unchecked", "unchecked"),
+        _row("checked", "checked"),
     ]
     nav = todo_cli.navigable_items(items)
-    assert nav[0]["status"] == "pinned"
+    assert [r["status"] for r in nav] == ["pinned", "unchecked", "checked"]

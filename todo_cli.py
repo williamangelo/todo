@@ -152,13 +152,13 @@ class App:
         status = item["status"]
         text = item["text"]
         date_str = item["created_at"]
-        padded = text.ljust(width)
 
         # index column (3 chars wide, right-aligned)
         idx_str = f"{index:>3}" if index is not None else "   "
         self.stdscr.addstr(screen_row, 0, idx_str, curses.A_DIM)
 
-        # bracket — cursor is shown by reversing the bracket of the selected item
+        # spaces before bracket drawn separately so cursor highlight covers only [ ] / [X]
+        self.stdscr.addstr(screen_row, 4, "  ", curses.A_NORMAL)
         if status == "pinned":
             bracket = "[ ]"
             bracket_attr = curses.color_pair(2) | curses.A_REVERSE if selected else curses.color_pair(2)
@@ -168,27 +168,28 @@ class App:
         else:
             bracket = "[ ]"
             bracket_attr = curses.A_REVERSE if selected else curses.A_DIM
-
-        self.stdscr.addstr(screen_row, 4, f"  {bracket}  ", bracket_attr)
+        self.stdscr.addstr(screen_row, 6, bracket, bracket_attr)
+        self.stdscr.addstr(screen_row, 9, "  ", curses.A_NORMAL)
 
         # text column starts at col 11
         text_col = 11
+        max_text = w - text_col - 14
         if status == "pinned":
-            for i, ch in enumerate(padded):
+            for i, ch in enumerate(text):
                 if text_col + i >= w - 1:
                     break
                 wave = self._wave_color(i) | (curses.A_DIM if selected else curses.A_NORMAL)
                 self.stdscr.addstr(screen_row, text_col + i, ch, wave)
         elif status == "checked":
-            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.color_pair(1) | curses.A_DIM)
+            self.stdscr.addstr(screen_row, text_col, text[:max_text], curses.color_pair(1) | curses.A_DIM)
         elif status == "scratched":
             # curses has no strikethrough — render dim
-            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.A_DIM)
+            self.stdscr.addstr(screen_row, text_col, text[:max_text], curses.A_DIM)
         else:
-            self.stdscr.addstr(screen_row, text_col, padded[:w - text_col - 14], curses.A_NORMAL)
+            self.stdscr.addstr(screen_row, text_col, text[:max_text], curses.A_NORMAL)
 
-        # date column: aligned globally to longest item
-        date_col = text_col + width + 2
+        # date pinned immediately after the item's own text
+        date_col = text_col + len(text) + 2
         date_str_formatted = f"│  {date_str}"
         if date_col + len(date_str_formatted) < w:
             self.stdscr.addstr(screen_row, date_col, date_str_formatted, curses.A_DIM)
